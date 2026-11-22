@@ -1,0 +1,10 @@
+# local artifacts, anchored to the repo root
+/data/
+/indexes/
+/runs/
+/outputs/
+/checkpoints/
+/tests/
+__pycache__/
+.pytest_cache/
+/.idea/
