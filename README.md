@@ -4,7 +4,8 @@
 
 - [LLM Reranking](studies/llm_reranking/README.md): fine-tuning small LLM rerankers for complex search queries, and combining them
   with larger LLMs through distillation, fusion, and cost-bounded cascades.
-- [RAG](studies/rag/README.md): cited report-style answers, scored with nuggets and citation support.
+- [RAG](studies/rag/README.md): generating cited answers for complex search queries from reranked contexts, and improving
+  their coverage through context size, document diversity, and sub-question retrieval.
 
 ```
 src/retrieval_ranking_lab/
@@ -17,7 +18,7 @@ src/retrieval_ranking_lab/
   generators.py         vLLM and Claude backends
   cli.py                download-data, run, fuse, evaluate
 studies/llm_reranking/  fine-tuning, teacher scores and distillation, fusion, listwise reranking, cascades, figures, report
-studies/rag/            generation, nugget and support evaluation
+studies/rag/            generation, nugget and support evaluation, judge check, sub-question retrieval
 ```
 
 ## Quick Start
@@ -48,7 +49,8 @@ Results are reported next to the track overview (arXiv:2603.09891).
 | RAG25 qrels | NIST, 22 topics, grades 0–4 |
 | RAG25 nuggets | post-edited, 22 topics, vital / okay, mapped to sub-narratives |
 | RAG25 candidates | organizer RankQwen3-32B top-100 (AG task input) |
-| RAG24 qrels | UMBRELA (301 topics) and NIST (89 topics), training only |
+| RAG24 qrels | UMBRELA (301 topics) for training and NIST (89 topics) for dev |
+| RAG24 nuggets | track nuggets with NIST assignments, 56 topics (CoverageBench release), the RAG dev set |
 
 Our metrics reproduce the overview's scores exactly (e.g. `rag25_test_rankqwen3`: 0.6462 / 0.5844 / 0.2274).
 Our runs were not in the judgment pool, so unjudged segments count as non-relevant and our scores are conservative.
@@ -101,7 +103,29 @@ Takeaways (details in [Findings](studies/llm_reranking/README.md#findings)):
 
 ### RAG
 
-Pipeline and evaluation are built and the Qwen3.5 judge is verified. Results are pending. See [setup](studies/rag/README.md#setup).
+Takeaways (details in [Findings](studies/rag/README.md#findings)):
+
+- Better retrieval gives better answers: reranked contexts cover more vital nuggets than SPLADE-v3 alone.
+- A larger context helps: the top 50 of our reranker gains 0.058 strict vital on dev and 0.023 on test over the top 20,
+  which brings it level with the organizers' RankQwen3-32B context on RAG25.
+- Wider retrieval does not close the rest of the gap: every context misses the same 20% of sub-narratives.
+- Citation support stays at 0.82–0.89 for every context and every generator from 2B up.
+- Our Qwen3.5 judge ranks systems almost as NIST assessors do (Kendall τ = 0.873).
+
+| RAG25 (22 topics), Qwen3.5-9B | strict_vital | subnarrative_coverage | support_precision |
+|---|---|---|---|
+| ours, top 20 | 0.337 | 0.582 | 0.866 |
+| ours, top 50 (dev choice) | 0.360 | 0.631 | 0.840 |
+| ours over organizer candidates, top 50 | 0.355 | 0.634 | 0.821 |
+| **organizers' RankQwen3-32B*, top 50** | **0.382** | **0.635** | **0.845** |
+
+\* The organizers' RankQwen3-32B context, answered and judged by our Qwen3.5-9B generator and Qwen3.5-35B-A3B judge instead of theirs.
+
+- The dev choice gains 0.023 strict vital over the top 20 on test and is level with the organizers' context* (p = 0.27).
+- Since every context misses the same sub-narratives, further gains have to come from how the answer covers the topic.
+  See [test results](studies/rag/README.md#test-results).
+
+![RAG25 test strict vital](studies/rag/figures/rag25_test.png)
 
 ## Reference
 
