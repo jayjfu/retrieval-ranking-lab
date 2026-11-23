@@ -24,7 +24,7 @@ class HybridRetriever(Retriever):
     def __init__(self, retrievers: list[Retriever], rrf_k: int = 60, candidate_k: int = 1000):
         self.retrievers, self.rrf_k, self.candidate_k = retrievers, rrf_k, candidate_k
 
-    def search(self, queries: Queries, k: int = 100) -> Run:
-        runs = [retriever.search(queries, k=max(k, self.candidate_k)) for retriever in self.retrievers]
+    def search(self, queries: Queries, num_results: int = 100) -> Run:
+        runs = [retriever.search(queries, num_results=max(num_results, self.candidate_k)) for retriever in self.retrievers]
         fused = reciprocal_rank_fusion(runs, rrf_k=self.rrf_k)
-        return {query_id: dict(sorted(docs.items(), key=lambda item: -item[1])[:k]) for query_id, docs in fused.items()}
+        return {query_id: dict(sorted(docs.items(), key=lambda item: -item[1])[:num_results]) for query_id, docs in fused.items()}

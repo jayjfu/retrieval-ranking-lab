@@ -1,4 +1,4 @@
-"""Pointwise LLM reranker: score = P("yes") after a yes/no relevance prompt.
+"""Pointwise LLM reranker: score = logit("yes") - logit("no") after a yes/no relevance prompt.
 
 Uses the Qwen3-Reranker template, so Qwen3-Reranker works zero-shot and any ChatML causal LM
 can be fine-tuned with the same head. Training reuses PromptEncoder and yes_no_logits.
@@ -56,12 +56,18 @@ class PromptEncoder:
         return {"input_ids": input_ids, "attention_mask": attention_mask}
 
 
-def yes_no_logits(model, batch: dict[str, torch.Tensor], yes_id: int, no_id: int) -> torch.Tensor:
-    """[batch, 2] logits (no, yes) at the last position."""
+def yes_no_logits(model, batch: dict[str, torch.Tensor], yes_id: int, no_id: int,
+                  fp32_head: bool = False) -> torch.Tensor:
+    """[batch, 2] logits (no, yes) at the last position.
+    fp32_head: compute the two logits in float32 from the final hidden state. bf16 logits keep ~3 digits and tie."""
     try:
-        output = model(**batch, logits_to_keep=1)  # skip the full [batch, len, vocab] logits
+        output = model(**batch, logits_to_keep=1, output_hidden_states=fp32_head)  # skip full-vocab logits
     except TypeError:
-        output = model(**batch)
+        output = model(**batch, output_hidden_states=fp32_head)
+    if fp32_head:
+        hidden = output.hidden_states[-1][:, -1, :].float()  # post final norm
+        head = model.get_output_embeddings().weight[[no_id, yes_id]].float()
+        return hidden @ head.T
     last = output.logits[:, -1, :]
     return torch.stack([last[:, no_id], last[:, yes_id]], dim=1).float()
 
@@ -104,14 +110,15 @@ class LLMReranker(Reranker):
 
     @torch.no_grad()
     def score(self, pairs: list[tuple[str, str]]) -> list[float]:
-        order = sorted(range(len(pairs)), key=lambda i: len(pairs[i][0]) + len(pairs[i][1]))  # less padding
+        order = sorted(range(len(pairs)), key=lambda index: len(pairs[index][0]) + len(pairs[index][1]))  # less padding
         scores = [0.0] * len(pairs)
         for start in range(0, len(order), self.batch_size):
             batch_indices = order[start : start + self.batch_size]
             batch = {name: tensor.to(self.device)
-                     for name, tensor in self.encoder([pairs[i] for i in batch_indices]).items()}
-            logits = yes_no_logits(self.model, batch, self.encoder.yes_id, self.encoder.no_id)
-            yes_probs = torch.softmax(logits, dim=-1)[:, 1].tolist()
-            for pair_index, probability in zip(batch_indices, yes_probs):
-                scores[pair_index] = probability
+                     for name, tensor in self.encoder([pairs[index] for index in batch_indices]).items()}
+            logits = yes_no_logits(self.model, batch, self.encoder.yes_id, self.encoder.no_id, fp32_head=True)
+            # logit margin: same order as P(yes), but P(yes) saturates at 0 / 1 and creates ties
+            margins = (logits[:, 1] - logits[:, 0]).tolist()
+            for pair_index, margin in zip(batch_indices, margins):
+                scores[pair_index] = margin
         return scores

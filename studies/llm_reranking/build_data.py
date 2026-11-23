@@ -27,9 +27,9 @@ def similar_topics(train_queries: dict[str, str], test_queries: dict[str, str], 
 
     train_ids, test_ids = list(train_queries), list(test_queries)
     vectorizer = TfidfVectorizer(stop_words="english")
-    vectorizer.fit([train_queries[q] for q in train_ids] + [test_queries[q] for q in test_ids])
-    similarity = (vectorizer.transform([train_queries[q] for q in train_ids])
-                  @ vectorizer.transform([test_queries[q] for q in test_ids]).T).toarray()
+    vectorizer.fit([train_queries[query_id] for query_id in train_ids] + [test_queries[query_id] for query_id in test_ids])
+    similarity = (vectorizer.transform([train_queries[query_id] for query_id in train_ids])
+                  @ vectorizer.transform([test_queries[query_id] for query_id in test_ids]).T).toarray()
     removed = {}
     for row, query_id in enumerate(train_ids):
         best = int(similarity[row].argmax())
@@ -59,7 +59,7 @@ def main(
     excluded_topics, excluded_segments = {}, set()
     if decontaminate:
         rag25 = load_rag25(data_dir)
-        excluded_topics = similar_topics({q: topics.queries[q] for q in topics.qrels}, rag25.queries,
+        excluded_topics = similar_topics({query_id: topics.queries[query_id] for query_id in topics.qrels}, rag25.queries,
                                          similarity_threshold)
         excluded_segments = {doc_id for grades in rag25.qrels.values() for doc_id in grades}
 
@@ -82,18 +82,22 @@ def main(
                 continue
             kept = {doc_id: grade for doc_id, grade in grades.items() if doc_id not in excluded_segments}
             num_segments_dropped += len(grades) - len(kept)
-            positive_ids = sorted((d for d, g in kept.items() if g >= min_positive_grade), key=lambda d: -kept[d])
+            positive_ids = sorted((doc_id for doc_id, grade in kept.items() if grade >= min_positive_grade),
+                                  key=lambda doc_id: -kept[doc_id])
             negative_ids = [doc_id for doc_id, grade in kept.items() if grade == 0]
             if not positive_ids or not negative_ids:
                 continue
             rng.shuffle(negative_ids)
-            negatives = [text for text in map(text_or_none, negative_ids[:max_negatives_per_topic]) if text]
+            negative_pairs = [(doc_id, text) for doc_id in negative_ids[:max_negatives_per_topic]
+                              if (text := text_or_none(doc_id))]
+            negatives = [text for _, text in negative_pairs]
             for doc_id in positive_ids[:max_positives_per_topic]:
                 positive = text_or_none(doc_id)
                 if positive is None or not negatives:
                     continue
                 record = {"query_id": query_id, "query": topics.queries[query_id],
-                          "positives": [positive], "negatives": negatives}
+                          "positives": [positive], "negatives": negatives,
+                          "positive_ids": [doc_id], "negative_ids": [negative_id for negative_id, _ in negative_pairs]}
                 file.write(json.dumps(record, ensure_ascii=False) + "\n")
                 num_groups += 1
 

@@ -45,7 +45,7 @@ def parse_cited_sentences(answer: str, num_passages: int) -> list[dict]:
         if text:
             sentences.append({"text": text, "citations": citations})
         elif sentences:  # citation-only fragment belongs to the previous sentence
-            sentences[-1]["citations"] += [c for c in citations if c not in sentences[-1]["citations"]]
+            sentences[-1]["citations"] += [citation for citation in citations if citation not in sentences[-1]["citations"]]
     return sentences
 
 
@@ -69,7 +69,7 @@ def to_trec_rag_2025(record: dict, team_id: str, run_id: str, run_type: str = "a
         "metadata": {"team_id": team_id, "run_id": run_id, "type": run_type,
                      "narrative_id": record["query_id"], "narrative": record["query"]},
         "references": record["context_ids"][:100],
-        "answer": [{"text": sentence["text"], "citations": [c for c in sentence["citations"] if c < 100]}
+        "answer": [{"text": sentence["text"], "citations": [citation for citation in sentence["citations"] if citation < 100]}
                    for sentence in record["sentences"]],
     }
 

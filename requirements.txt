@@ -5,6 +5,7 @@ pyserini>=2.4
 sentence-transformers>=3.0
 typer
 tqdm
+matplotlib
 scikit-learn
 # training
 peft>=0.11

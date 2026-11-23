@@ -1,6 +1,6 @@
 """RAG study on RAG25: generate cited answers from a run's top-k segments, then score nuggets and support.
 
-Conditions are run files. With the organizer RankQwen3-32B run, k=20/50 matches the rag25_qwen3_20/50_ag baselines.
+Conditions are run files. With the organizer RankQwen3-32B run, top 20 / 50 contexts match the rag25_qwen3_20/50_ag baselines.
 """
 
 from __future__ import annotations
@@ -93,17 +93,17 @@ def main(
     team_id: str = "retrieval_ranking_lab",
 ):
     topics = load_rag25(data_dir)
-    queries = topics.queries if all_topics else {q: t for q, t in topics.queries.items() if q in topics.nuggets}
+    queries = topics.queries if all_topics else {query_id: text for query_id, text in topics.queries.items() if query_id in topics.nuggets}
     segments = SegmentStore()
-    k_values = [int(k) for k in context_sizes.split(",")]
+    context_size_values = [int(size) for size in context_sizes.split(",")]
 
     records = []
     for run_path in runs:
         run = read_run(run_path)
-        for k in k_values:
+        for context_size in context_size_values:
             for query_id, query in queries.items():
-                records.append({"condition": run_path.stem, "k": k, "query_id": query_id, "query": query,
-                                "context_ids": ranked_doc_ids(run, query_id, k)})
+                records.append({"condition": run_path.stem, "context_size": context_size, "query_id": query_id,
+                                "query": query, "context_ids": ranked_doc_ids(run, query_id, context_size)})
     typer.echo(f"{len(records)} answers with {generator}")
     generate_answers(records, segments, generator)
 
@@ -120,12 +120,13 @@ def main(
                 record["scores"] = score(record, topics)
             file.write(json.dumps(record, ensure_ascii=False) + "\n")
     for run_path in runs:
-        for k in k_values:
-            subset = [r for r in records if r["condition"] == run_path.stem and r["k"] == k]
-            run_id = f"{generator_tag}-{run_path.stem}-k{k}"
+        for context_size in context_size_values:
+            subset = [record for record in records
+                      if record["condition"] == run_path.stem and record["context_size"] == context_size]
+            run_id = f"{generator_tag}-{run_path.stem}-top{context_size}"
             export_trec_rag(subset, output_dir / f"{run_id}.jsonl", team_id=team_id, run_id=run_id)
-            scored = [r["scores"] for r in subset if "scores" in r]
-            rows[run_id] = {name: nan_mean(s[name] for s in scored) for name in METRICS}
+            scored = [record["scores"] for record in subset if "scores" in record]
+            rows[run_id] = {name: nan_mean(scores[name] for scores in scored) for name in METRICS}
 
     table = format_table(rows, METRICS)
     judge_note = f"Judge: {judge}. Overview rows use GPT-4.1 (nuggets) and GPT-OSS-120B (support, 17 topics)."

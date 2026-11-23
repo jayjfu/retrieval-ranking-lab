@@ -56,7 +56,7 @@ class TwoStagePipeline:
         """Returns (first-stage run, final run). Pass first_stage to rerank an existing run."""
         start = time.perf_counter()
         if first_stage is None:
-            first_stage = self.retriever.search(queries, k=k_retrieve)
+            first_stage = self.retriever.search(queries, num_results=k_retrieve)
         self.timings["retrieve_s"] = time.perf_counter() - start
         if self.reranker is None:
             return first_stage, first_stage

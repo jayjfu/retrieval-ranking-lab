@@ -15,7 +15,7 @@ class Retriever(ABC):
     name: str = "retriever"
 
     @abstractmethod
-    def search(self, queries: Queries, k: int = 100) -> Run: ...
+    def search(self, queries: Queries, num_results: int = 100) -> Run: ...
 
 
 def hits_to_run(query_ids: list[str], results: dict) -> Run:

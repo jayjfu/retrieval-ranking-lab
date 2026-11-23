@@ -1,10 +1,14 @@
-# RAG Study
+# Retrieval-Augmented Generation (RAG)
+
+### Grounded, citation-backed answer generation over web-scale corpora, evaluated by fact coverage and citation support.
 
 Cited, report-style answers (at most 400 words) for RAG25 narratives, in the official AG/RAG JSONL format.
 
+Status: pipeline and evaluation are built and the Qwen3.5 judge is verified. Results are pending.
+
 ## Setup
 
-- Context: top-k segments of a run. The organizer RankQwen3-32B run with k = 20 / 50 matches the `rag25_qwen3_20/50_ag` baselines.
+- Context: the top segments of a run. The organizer RankQwen3-32B run with top 20 / 50 matches the `rag25_qwen3_20/50_ag` baselines.
 - Generator: Qwen3.5-9B. Judge: Qwen3.5-35B-A3B-GPTQ-Int4.
 
 ## Metrics
@@ -14,13 +18,14 @@ Cited, report-style answers (at most 400 words) for RAG25 narratives, in the off
 - `subnarrative_coverage`: sub-narratives with at least one fully supported nugget.
 - `support_precision`, `support_recall`: first citation per sentence, weights 1 / 0.5 / 0 (overview Table 12). Uncited sentences count as no support.
 
-The official assessors are GPT-4.1 (nuggets) and GPT-OSS-120B (support), so our scores are close but not identical in setup.
+The official assessors are GPT-4.1 (nuggets) and GPT-OSS-120B (support), so our scores are not directly comparable to the overview.
 
 ## Run
 
 ```bash
 python -m studies.rag.run_study --runs data/trec_rag/rag25_run_rankqwen3_32b.trec --context-sizes 20,50
-python -m studies.rag.run_study --runs runs/rag25/hybrid+llm-qwen3.5-0.8b-rag24@100.trec --context-sizes 20
+python -m studies.rag.run_study --context-sizes 20 \
+    --runs "outputs/llm_reranking/rag25/splade@100/lora:checkpoints_reranker_listwise_lr1e-4_pos32_epoch1_cosine_clip1_step-290.trec"
 ```
 
 Outputs are written to `outputs/rag/rag25/<generator>/`.
