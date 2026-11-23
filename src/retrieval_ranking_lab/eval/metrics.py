@@ -19,32 +19,32 @@ def ranked_ids(docs: dict[str, float]) -> list[str]:
     return [doc_id for doc_id, _ in sorted(docs.items(), key=lambda item: (item[1], item[0]), reverse=True)]
 
 
-def ndcg_at_k(ranking: list[str], grades: dict[str, int], k: int) -> float:
+def ndcg_at_k(ranking: list[str], grades: dict[str, int], cutoff: int) -> float:
     """Linear gain, as in trec_eval ndcg_cut."""
-    dcg = sum(grades.get(doc_id, 0) / math.log2(rank + 2) for rank, doc_id in enumerate(ranking[:k]))
-    ideal = sorted(grades.values(), reverse=True)[:k]
+    dcg = sum(grades.get(doc_id, 0) / math.log2(rank + 2) for rank, doc_id in enumerate(ranking[:cutoff]))
+    ideal = sorted(grades.values(), reverse=True)[:cutoff]
     idcg = sum(grade / math.log2(rank + 2) for rank, grade in enumerate(ideal))
     return dcg / idcg if idcg > 0 else 0.0
 
 
-def reciprocal_rank_at_k(ranking: list[str], relevant: set[str], k: int) -> float:
-    for rank, doc_id in enumerate(ranking[:k]):
+def reciprocal_rank_at_k(ranking: list[str], relevant: set[str], cutoff: int) -> float:
+    for rank, doc_id in enumerate(ranking[:cutoff]):
         if doc_id in relevant:
             return 1.0 / (rank + 1)
     return 0.0
 
 
-def recall_at_k(ranking: list[str], relevant: set[str], k: int) -> float:
-    return len(relevant.intersection(ranking[:k])) / len(relevant)
+def recall_at_k(ranking: list[str], relevant: set[str], cutoff: int) -> float:
+    return len(relevant.intersection(ranking[:cutoff])) / len(relevant)
 
 
-def precision_at_k(ranking: list[str], relevant: set[str], k: int) -> float:
-    return len(relevant.intersection(ranking[:k])) / k
+def precision_at_k(ranking: list[str], relevant: set[str], cutoff: int) -> float:
+    return len(relevant.intersection(ranking[:cutoff])) / cutoff
 
 
-def average_precision_at_k(ranking: list[str], relevant: set[str], k: int) -> float:
+def average_precision_at_k(ranking: list[str], relevant: set[str], cutoff: int) -> float:
     hits, total = 0, 0.0
-    for rank, doc_id in enumerate(ranking[:k]):
+    for rank, doc_id in enumerate(ranking[:cutoff]):
         if doc_id in relevant:
             hits += 1
             total += hits / (rank + 1)
@@ -73,17 +73,17 @@ def evaluate(
             continue
         ranking = ranked_ids(run.get(query_id, {}))
         scores = {}
-        for name, kind, k in parsed:
+        for name, kind, cutoff in parsed:
             if kind == "ndcg":
-                scores[name] = ndcg_at_k(ranking, grades, k)
+                scores[name] = ndcg_at_k(ranking, grades, cutoff)
             elif kind == "mrr":
-                scores[name] = reciprocal_rank_at_k(ranking, relevant, k)
+                scores[name] = reciprocal_rank_at_k(ranking, relevant, cutoff)
             elif kind == "recall":
-                scores[name] = recall_at_k(ranking, relevant, k)
+                scores[name] = recall_at_k(ranking, relevant, cutoff)
             elif kind == "p":
-                scores[name] = precision_at_k(ranking, relevant, k)
+                scores[name] = precision_at_k(ranking, relevant, cutoff)
             else:
-                scores[name] = average_precision_at_k(ranking, relevant, k)
+                scores[name] = average_precision_at_k(ranking, relevant, cutoff)
         per_query_scores[query_id] = scores
 
     num_queries = max(len(per_query_scores), 1)

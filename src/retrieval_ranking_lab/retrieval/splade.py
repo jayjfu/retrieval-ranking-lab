@@ -19,8 +19,8 @@ class SpladeRetriever(Retriever):
                                                                  encoder_type="onnx")
         self.threads = threads
 
-    def search(self, queries: Queries, k: int = 100) -> Run:
+    def search(self, queries: Queries, num_results: int = 100) -> Run:
         query_ids = list(queries)
         results = self.searcher.batch_search([queries[query_id] for query_id in query_ids], query_ids,
-                                             k=k, threads=self.threads)
+                                             k=num_results, threads=self.threads)
         return hits_to_run(query_ids, results)

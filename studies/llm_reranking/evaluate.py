@@ -54,6 +54,7 @@ def main(
     batch_size: int = 16,
     data_dir: Path = DEFAULT_DATA_DIR,
     out_dir: Path = typer.Option(Path("outputs/llm_reranking")),
+    name: str = typer.Option(None, help="output folder name, e.g. the run name; default <first stage>@<depth>"),
 ):
     if topics not in ("rag24-dev", "rag25"):
         raise typer.BadParameter("evaluate on rag24-dev for tuning or rag25 for the final test")
@@ -66,7 +67,7 @@ def main(
 
     rows = dict(RETRIEVAL_NIST) if topics == "rag25" else {}
     rows[first_stage_run.stem] = evaluate(candidates, topic_set.qrels, METRICS)
-    output_dir = out_dir / topics / f"{first_stage_run.stem}@{depth}"
+    output_dir = out_dir / topics / (name or f"{first_stage_run.stem}@{depth}")
     output_dir.mkdir(parents=True, exist_ok=True)
     for spec in rerankers.split(","):
         reranker = load_reranker(spec, batch_size)
