@@ -1,7 +1,8 @@
 """TREC RAG on the MS MARCO V2.1 segmented corpus (113,520,750 segments).
 
 RAG25: 105 narrative topics; NIST qrels, sub-narratives and post-edited nuggets for 22 topics.
-RAG24: 301 topics with UMBRELA qrels and 89 with NIST qrels, used for training.
+RAG24: 301 topics with UMBRELA qrels and 89 with NIST qrels, used for training;
+56 of the NIST topics have track nuggets (CoverageBench release), used as the RAG dev set.
 Segment text comes from the Pyserini BM25 index, which stores raw segments.
 """
 
@@ -29,6 +30,9 @@ ASSET_URLS = {
         "https://trec.nist.gov/data/rag/trec25_narratives_final_w_questions_w_sub_narratives_edit_20250822.json",
     "rag25_nuggets.jsonl": "https://raw.githubusercontent.com/TREC-RAG/trec-rag-data/main/"
                            "trec-rag-2026/development-data/rag25-dev-nuggets/rag25-dev-nuggets.jsonl",
+    # TREC 2024 RAG nuggets with the track's assignments to submitted answers, 56 topics
+    "rag24_nuggets_assignments.jsonl": "https://huggingface.co/datasets/hltcoe/coveragebench/resolve/main/"
+                                       "nuggets/rag24_nuggets.jsonl",
     # organizer RankQwen3-32B top-100, the AG task input
     "rag25_run_rankqwen3_32b.trec": "https://raw.githubusercontent.com/castorini/ragnarok_data/main/"
                                     "rag25/retrieve_results/MISC/run.rankqwen3_32b.rag25.txt",
@@ -120,6 +124,18 @@ def load_rag24(data_dir: Path = DEFAULT_DATA_DIR, qrels_source: str = "umbrela")
             query_id, text = line.rstrip("\n").split("\t", 1)
             queries[query_id] = text
     return RagTopics(f"rag24-{qrels_source}", queries, read_qrels(data_dir / f"rag24_qrels_{qrels_source}.txt"))
+
+
+def load_rag24_nuggets(data_dir: Path = DEFAULT_DATA_DIR) -> RagTopics:
+    """RAG dev set: RAG24 NIST topics with track nuggets ({"text", "importance"}); no sub-narratives."""
+    topics = load_rag24(data_dir, "nist")
+    topics.name = "rag24-dev"
+    with open(data_dir / "rag24_nuggets_assignments.jsonl") as file:
+        for line in file:  # one row per submitted answer; every row of a topic lists the same nuggets
+            record = json.loads(line)
+            topics.nuggets.setdefault(record["qid"], [{"text": nugget["text"].strip(), "importance": nugget["importance"]}
+                                                      for nugget in record["nuggets"]])
+    return topics
 
 
 TOPIC_SETS = ("rag25", "rag24-dev", "rag24-train", "rag24-all")

@@ -8,6 +8,7 @@ Takeaways (details in [Findings](#findings)):
 - Larger zero-shot Qwen3.5 models gain on dev but not on RAG25, alone or distilled into ours.
 - Fusing them with ours by RRF is best: 0.665, 4th of 47 runs, though not significant.
 - An LLM stage on only the top 30 gets half the fusion gain at a third of the cost (dev).
+- Downstream, contexts from our reranker give better RAG answers than SPLADE-v3 ([RAG study](../rag/README.md)).
 
 ![RAG25 test nDCG@30](figures/rag25_test.png)
 

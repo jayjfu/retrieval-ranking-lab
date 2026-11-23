@@ -1,4 +1,4 @@
-"""RAG study on RAG25: generate cited answers from a run's top-k segments, then score nuggets and support.
+"""RAG study on RAG25 (test) or RAG24 (dev): generate cited answers from a run's top-k segments, then score nuggets and support.
 
 Conditions are run files. With the organizer RankQwen3-32B run, top 20 / 50 contexts match the rag25_qwen3_20/50_ag baselines.
 """
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import typer
 
-from retrieval_ranking_lab.data.trec_rag import DEFAULT_DATA_DIR, SegmentStore, load_rag25
+from retrieval_ranking_lab.data.trec_rag import DEFAULT_DATA_DIR, SegmentStore, load_rag24_nuggets, load_rag25
 from retrieval_ranking_lab.eval.metrics import format_table
 from retrieval_ranking_lab.eval.overview_2025 import NUGGETS_AUTO_ASSIGNMENT, SUPPORT_AUTO
 from retrieval_ranking_lab.generators import make_generator
@@ -24,6 +24,21 @@ from studies.rag.rag_components import (answer_text, build_messages, export_trec
 
 app = typer.Typer(add_completion=False)
 METRICS = ["strict_vital", "vital", "subnarrative_coverage", "support_precision", "support_recall", "words"]
+
+
+def select_context(run, query_id: str, size: int, max_per_document: int) -> list[str]:
+    """Top segments of a run; with max_per_document > 0, at most that many segments of one document."""
+    if not max_per_document:
+        return ranked_doc_ids(run, query_id, size)
+    selected, per_document = [], {}
+    for segment_id in ranked_doc_ids(run, query_id):
+        document_id = segment_id.split("#")[0]
+        if per_document.get(document_id, 0) < max_per_document:
+            per_document[document_id] = per_document.get(document_id, 0) + 1
+            selected.append(segment_id)
+            if len(selected) == size:
+                break
+    return selected
 
 
 def generate_answers(records: list[dict], segments, generator_spec: str) -> None:
@@ -83,27 +98,43 @@ def nan_mean(values) -> float:
 
 @app.command()
 def main(
-    runs: list[Path] = typer.Option([Path("data/trec_rag/rag25_run_rankqwen3_32b.trec")], help="context runs"),
+    runs: list[str] = typer.Option(["rankqwen3_32b=data/trec_rag/rag25_run_rankqwen3_32b.trec"],
+                                   help="context run as label=path.trec, or a path (label = file stem)"),
     context_sizes: str = "20,50",
+    max_per_document: str = typer.Option("0", help="comma list of segment caps per document, 0 = no cap"),
     generator: str = typer.Option("vllm:Qwen/Qwen3.5-9B", help="vllm:<hf id> | anthropic:<model id>"),
     judge: str = typer.Option("vllm:Qwen/Qwen3.5-35B-A3B-GPTQ-Int4", help="nugget and support assessor"),
     all_topics: bool = typer.Option(False, help="generate for all 105 topics (only 22 are scored)"),
     data_dir: Path = DEFAULT_DATA_DIR,
     out_dir: Path = typer.Option(Path("outputs/rag")),
     team_id: str = "retrieval_ranking_lab",
+    name: str = typer.Option("default", help="experiment name; outputs go to <out_dir>/<topic set>/<generator>/<name>/"),
+    max_topics: int = typer.Option(0, help="first n scored topics only, 0 = all (smoke tests)"),
+    topic_set: str = typer.Option("rag25", help="rag24-dev (56 topics with nuggets, tuning) | rag25 (22 topics, test)"),
 ):
-    topics = load_rag25(data_dir)
+    if topic_set not in ("rag24-dev", "rag25"):
+        raise typer.BadParameter("topic set is rag24-dev or rag25")
+    topics = load_rag25(data_dir) if topic_set == "rag25" else load_rag24_nuggets(data_dir)
     queries = topics.queries if all_topics else {query_id: text for query_id, text in topics.queries.items() if query_id in topics.nuggets}
+    if max_topics:
+        queries = dict(list(queries.items())[:max_topics])
     segments = SegmentStore()
     context_size_values = [int(size) for size in context_sizes.split(",")]
+    cap_values = [int(cap) for cap in max_per_document.split(",")]
 
+    conditions = {}
+    for spec in runs:
+        label, _, run_path = spec.rpartition("=")
+        conditions[label or Path(run_path).stem] = Path(run_path)
     records = []
-    for run_path in runs:
+    for label, run_path in conditions.items():
         run = read_run(run_path)
         for context_size in context_size_values:
-            for query_id, query in queries.items():
-                records.append({"condition": run_path.stem, "context_size": context_size, "query_id": query_id,
-                                "query": query, "context_ids": ranked_doc_ids(run, query_id, context_size)})
+            for cap in cap_values:
+                for query_id, query in queries.items():
+                    records.append({"condition": label, "context_size": context_size, "max_per_document": cap,
+                                    "query_id": query_id, "query": query,
+                                    "context_ids": select_context(run, query_id, context_size, cap)})
     typer.echo(f"{len(records)} answers with {generator}")
     generate_answers(records, segments, generator)
 
@@ -111,26 +142,27 @@ def main(
     judge_answers(judged, topics, segments, judge)
 
     generator_tag = generator.split(":", 1)[1].split("/")[-1]
-    output_dir = out_dir / "rag25" / generator_tag
+    output_dir = out_dir / topic_set / generator_tag / name
     output_dir.mkdir(parents=True, exist_ok=True)
-    rows = dict(NUGGETS_AUTO_ASSIGNMENT) | dict(SUPPORT_AUTO)
+    rows = {} if topic_set != "rag25" else {key: NUGGETS_AUTO_ASSIGNMENT.get(key, {}) | SUPPORT_AUTO.get(key, {})
+            for key in list(NUGGETS_AUTO_ASSIGNMENT) + [key for key in SUPPORT_AUTO if key not in NUGGETS_AUTO_ASSIGNMENT]}
     with open(output_dir / "answers.jsonl", "w") as file:
         for record in records:
             if "nugget_labels" in record:
                 record["scores"] = score(record, topics)
             file.write(json.dumps(record, ensure_ascii=False) + "\n")
-    for run_path in runs:
-        for context_size in context_size_values:
-            subset = [record for record in records
-                      if record["condition"] == run_path.stem and record["context_size"] == context_size]
-            run_id = f"{generator_tag}-{run_path.stem}-top{context_size}"
+    for label in conditions:
+        for context_size, cap in [(size, cap) for size in context_size_values for cap in cap_values]:
+            subset = [record for record in records if record["condition"] == label
+                      and record["context_size"] == context_size and record["max_per_document"] == cap]
+            run_id = f"{generator_tag}-{label}-top{context_size}" + (f"-cap{cap}" if cap else "")
             export_trec_rag(subset, output_dir / f"{run_id}.jsonl", team_id=team_id, run_id=run_id)
             scored = [record["scores"] for record in subset if "scores" in record]
             rows[run_id] = {name: nan_mean(scores[name] for scores in scored) for name in METRICS}
 
     table = format_table(rows, METRICS)
     judge_note = f"Judge: {judge}. Overview rows use GPT-4.1 (nuggets) and GPT-OSS-120B (support, 17 topics)."
-    (output_dir / "summary.md").write_text(f"# RAG25: {generator}\n\n{judge_note}\n\n{table}\n")
+    (output_dir / "summary.md").write_text(f"# {topic_set}: {generator}\n\n{judge_note}\n\n{table}\n")
     (output_dir / "summary.json").write_text(json.dumps(rows, indent=2))
     typer.echo(f"\n{judge_note}\n{table}\n\n-> {output_dir}")
 
