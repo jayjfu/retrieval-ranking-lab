@@ -5,14 +5,20 @@
 The contexts come from the [LLM Reranking](../llm_reranking/README.md) study: SPLADE-v3, our fine-tuned Qwen3.5-0.8B reranker
 ("ours"), and its RRF fusion with zero-shot Qwen3.5 rerankers.
 
+We generate cited answers for the narrative queries of TREC RAG 2025 with Qwen3.5-9B, using contexts from the reranking study,
+and score them with a Qwen3.5-35B-A3B nugget judge checked against NIST assessors. Our best setup, the top 50 segments of our reranker,
+reaches 0.360 strict vital on RAG25, level with the organizers' RankQwen3-32B context answered by our generator (0.382, p = 0.27).
 Takeaways (details in [Findings](#findings)):
 
-- Better retrieval gives better answers: reranked contexts cover more vital nuggets than SPLADE-v3 alone.
-- A larger context helps: the top 50 of ours gains 0.058 strict vital on dev and 0.023 on test over the top 20,
-  which brings it level with the organizers' RankQwen3-32B context on RAG25.
-- Wider retrieval does not close the rest of the gap: every context misses the same 20% of sub-narratives.
-- Citation support stays at 0.82–0.89 for every context and every generator from 2B up.
-- Our Qwen3.5 judge ranks systems almost as NIST assessors do (Kendall τ = 0.873).
+1. **Better retrieval gives better answers.** With the same generator, our reranker's context raises strict vital from 0.397 to 0.497
+   over SPLADE-v3, and every reranked context also beats SPLADE-v3 on RAG25.
+2. **A larger context helps more than a more diverse one.** The top 50 segments of our reranker raise strict vital from 0.483 to 0.541,
+   while capping segments per document does not help.
+3. **The remaining gap is in what the answer covers.** Every context misses the same 20% of sub-narratives,
+   and higher-recall candidates do not give better answers.
+4. **Citations are reliable.** Support precision stays at 0.82–0.89 for every context and every generator from 2B up.
+5. **The judge can be trusted for comparisons.** It ranks systems almost as NIST assessors do (Kendall τ = 0.873),
+   though it scores lower in absolute terms.
 
 ![RAG25 test strict vital](figures/rag25_test.png)
 
