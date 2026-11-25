@@ -199,9 +199,9 @@ DISTILLED = f"{PLAIN}_distill_alpha0_tau1"
 AUGMENTED = f"{DISTILLED}_group16_unjudged8"
 TEACHER = "ensemble_9b-yes_no_35b-a3b-graded"
 SYSTEMS = {  # dev-selected system of each section: id -> (label, group, source)
-    PLAIN: ("Qwen3.5-0.8B + LoRA (ours, fine-tuned)", "ours", "run"),
-    DISTILLED: ("Qwen3.5-0.8B + LoRA, distilled (ours)", "ours", "run"),
-    AUGMENTED: ("Qwen3.5-0.8B + LoRA, distilled + augmented (ours)", "ours", "run"),
+    PLAIN: ("Qwen3.5-0.8B (ours, fine-tuned)", "ours", "run"),
+    DISTILLED: ("Qwen3.5-0.8B, distilled (ours)", "ours", "run"),
+    AUGMENTED: ("Qwen3.5-0.8B, distilled + augmented (ours)", "ours", "run"),
     TEACHER: ("Qwen3.5-9B yes/no + 35B-A3B graded (teacher)", "zero_shot", "teacher"),
     "rrf_ours+teacher+splade": ("ours + teacher + SPLADE-v3 (RRF)", "ours", "fusion"),
     "qwen35b_ours": ("listwise Qwen3.5-35B-A3B, after ours", "ours", "listwise"),

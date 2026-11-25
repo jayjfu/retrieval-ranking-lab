@@ -4,7 +4,7 @@
 
 Takeaways (details in [Findings](#findings)):
 
-- Fine-tuning works: Qwen3.5-0.8B + LoRA reaches 0.650 nDCG@30 on RAG25, on par with the organizers' 32B reranker.
+- Fine-tuning works: our fine-tuned Qwen3.5-0.8B reaches 0.650 nDCG@30 on RAG25, on par with the organizers' 32B reranker.
 - Larger zero-shot Qwen3.5 models gain on dev but not on RAG25, alone or distilled into ours.
 - Fusing them with ours by RRF is best: 0.665, 4th of 47 runs, though not significant.
 - An LLM stage on only the top 30 gets half the fusion gain at a third of the cost (dev).
@@ -152,7 +152,7 @@ Best dev loss: the lowest loss on the frozen dev groups over the checkpoints (st
 ### 4. Dev Results
 
 The best dev nDCG@30 over every checkpoint of every run: `listwise_lr1e-4_pos32_epoch1_cosine_clip1`, step 290 (0.537).
-Outside this section it is called **Qwen3.5-0.8B + LoRA (ours)**.
+Outside this section it is called **Qwen3.5-0.8B (ours)**.
 It lifts Qwen3.5-0.8B from 0.401 to 0.537, above Qwen3-Reranker-0.6B and 0.019 below Qwen3-Reranker-4B,
 at the speed of Qwen3-Reranker-0.6B (0.49 s/query).
 
@@ -386,9 +386,9 @@ Each section sends only its dev-selected systems to RAG25.
 | Qwen3-Reranker-0.6B | 0.585 | 0.536 |
 | Qwen3-Reranker-4B | 0.592 | 0.542 |
 | Qwen3.5-9B yes/no + 35B-A3B graded, zero-shot (teacher, [Teacher Gate](#1-teacher-gate)) | 0.616 | 0.546 |
-| Qwen3.5-0.8B + LoRA (ours, fine-tuned) | 0.650 | 0.557 |
-| Qwen3.5-0.8B + LoRA, distilled (ours, [Distillation](#3-distillation)) | 0.605 | 0.546 |
-| Qwen3.5-0.8B + LoRA, distilled + augmented (ours, [Augmentation](#4-augmentation)) | 0.635 | 0.553 |
+| Qwen3.5-0.8B (ours, fine-tuned) | 0.650 | 0.557 |
+| Qwen3.5-0.8B, distilled (ours, [Distillation](#3-distillation)) | 0.605 | 0.546 |
+| Qwen3.5-0.8B, distilled + augmented (ours, [Augmentation](#4-augmentation)) | 0.635 | 0.553 |
 | **ours + teacher + SPLADE-v3 (RRF, [Fusion](#fusion))** | **0.665** | **0.561** |
 | Qwen3.5-35B-A3B listwise, zero-shot, after ours ([Listwise](#listwise-llm-reranking)) | 0.625 | 0.544 |
 | ours + listwise Qwen3.5-35B-A3B + Qwen3.5-9B (RRF, [Listwise](#listwise-llm-reranking)) | 0.664 | 0.559 |

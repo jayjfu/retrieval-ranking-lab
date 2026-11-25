@@ -61,7 +61,7 @@ Qwen3.5 for all LLM roles:
 
 | Role | Model |
 |---|---|
-| Fine-tuned reranker (ours) | Qwen3.5-0.8B + LoRA |
+| Fine-tuned reranker (ours) | Qwen3.5-0.8B |
 | Teachers and fusion members, pointwise | Qwen3.5-9B (yes/no), Qwen3.5-35B-A3B-GPTQ-Int4 (graded 0–3) |
 | Listwise reranker | Qwen3.5-35B-A3B-GPTQ-Int4 |
 | RAG generator / judge | Qwen3.5-9B / Qwen3.5-35B-A3B-GPTQ-Int4 |
@@ -74,7 +74,7 @@ Qwen3.5 has no reranker model, so Qwen3-Reranker is the purpose-built reference.
 
 Takeaways (details in [Findings](studies/llm_reranking/README.md#findings)):
 
-- Fine-tuning works: Qwen3.5-0.8B + LoRA reaches 0.650 nDCG@30 on RAG25, on par with the organizers' 32B reranker.
+- Fine-tuning works: our fine-tuned Qwen3.5-0.8B reaches 0.650 nDCG@30 on RAG25, on par with the organizers' 32B reranker.
 - Larger zero-shot Qwen3.5 models gain on dev but not on RAG25, alone or distilled into ours.
 - Fusing them with ours by RRF is best: up to 0.665, 4th of 47 runs, though not significant.
 - An LLM stage on only the top 30 gets half the fusion gain at a third of the cost (dev).
@@ -83,9 +83,9 @@ Takeaways (details in [Findings](studies/llm_reranking/README.md#findings)):
 |---|---|---|
 | SPLADE-v3 | 0.596 | 0.539 |
 | SPLADE-v3 → Qwen3-Reranker-4B | 0.592 | 0.542 |
-| SPLADE-v3 → Qwen3.5-0.8B + LoRA (ours, fine-tuned) | 0.650 | 0.557 |
-| SPLADE-v3 → Qwen3.5-0.8B + LoRA, distilled (ours) | 0.605 | 0.546 |
-| SPLADE-v3 → Qwen3.5-0.8B + LoRA, distilled + augmented (ours) | 0.635 | 0.553 |
+| SPLADE-v3 → Qwen3.5-0.8B (ours, fine-tuned) | 0.650 | 0.557 |
+| SPLADE-v3 → Qwen3.5-0.8B, distilled (ours) | 0.605 | 0.546 |
+| SPLADE-v3 → Qwen3.5-0.8B, distilled + augmented (ours) | 0.635 | 0.553 |
 | **SPLADE-v3 → ours + listwise Qwen3.5-35B-A3B + Qwen3.5-9B (RRF)** | **0.664** | **0.559** |
 | *overview* RankQwen3-32B (organizers) | 0.646 | 0.584 |
 
