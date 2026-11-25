@@ -2,13 +2,22 @@
 
 ### Fine-tuning small LLM rerankers for complex search queries, and combining them with larger LLMs through distillation, fusion, and cost-bounded cascades.
 
-Takeaways (details in [Findings](#findings)):
+We fine-tune Qwen3.5-0.8B into a reranker for the complex, narrative queries of TREC RAG 2025, then combine it with larger
+zero-shot Qwen3.5 models as teachers, fusion members, and listwise rerankers, and map what each stage costs.
+The fine-tuned 0.8B reranker matches the organizers' 32B reranker on RAG25 (0.650 nDCG@30), and fusing it with Qwen3.5 rankers
+reaches 0.665, which would rank 4th of 47 runs. Takeaways (details in [Findings](#findings)):
 
-- Fine-tuning works: our fine-tuned Qwen3.5-0.8B reaches 0.650 nDCG@30 on RAG25, on par with the organizers' 32B reranker.
-- Larger zero-shot Qwen3.5 models gain on dev but not on RAG25, alone or distilled into ours.
-- Fusing them with ours by RRF is best: 0.665, 4th of 47 runs, though not significant.
-- An LLM stage on only the top 30 gets half the fusion gain at a third of the cost (dev).
-- Downstream, contexts from our reranker give better RAG answers than SPLADE-v3 ([RAG study](../rag/README.md)).
+1. **Fine-tuning works.** It lifts Qwen3.5-0.8B from 0.401 to 0.537 nDCG@30, above Qwen3-Reranker-0.6B, and on RAG25 it is
+   significantly above SPLADE-v3 and Qwen3-Reranker-4B. More distinct training topics help more than any optimizer or loss change.
+2. **Distillation and augmentation steady the student.** A Qwen3.5-9B + 35B-A3B teacher ensemble beats every single teacher (0.572).
+   Distilling it and adding teacher-scored unjudged segments raise the student to 0.549 and stabilize training,
+   although the gain does not carry over to RAG25's longer narratives.
+3. **Model fusion works.** RRF of ours with the larger Qwen3.5 scorers beats both (0.588), because their errors differ,
+   and it gives our best RAG25 results (0.665 and 0.664).
+4. **Listwise reranking adds a strong, different signal.** Sliding-window Qwen3.5-35B-A3B reaches 0.565 on its own at 2 s per query,
+   and as a fusion member it gives the best ranking overall (0.598).
+5. **Cascades trade cost for quality.** An LLM stage on only the top 30 of our ranking gets about half of the fusion gain at a third of its cost.
+6. **Better ranking helps downstream.** Contexts from our reranker give better RAG answers than SPLADE-v3 ([RAG study](../rag/README.md)).
 
 ![RAG25 test nDCG@30](figures/rag25_test.png)
 
