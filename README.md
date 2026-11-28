@@ -3,7 +3,7 @@
 ### A hands-on lab for building, running, and comparing the retrieval and ranking stack behind frontier search, recommendation, and ads systems: first-stage retrieval, reranking, LLM rankers, RAG, etc.
 
 - [LLM Reranking](studies/llm_reranking/README.md): fine-tuning small LLM rerankers for complex search queries, and combining them
-  with larger LLMs through distillation, fusion, and cost-bounded cascades.
+  with larger LLMs through distillation, fusion, listwise reranking, and cost-bounded cascades.
 - [RAG](studies/rag/README.md): generating cited answers for complex search queries from reranked contexts, and improving
   their coverage through context size, document diversity, and sub-question retrieval.
 

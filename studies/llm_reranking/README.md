@@ -1,6 +1,6 @@
 # LLM Reranking
 
-### Fine-tuning small LLM rerankers for complex search queries, and combining them with larger LLMs through distillation, fusion, and cost-bounded cascades.
+### Fine-tuning small LLM rerankers for complex search queries, and combining them with larger LLMs through distillation, fusion, listwise reranking, and cost-bounded cascades.
 
 We fine-tune Qwen3.5-0.8B into a reranker for the complex, narrative queries of TREC RAG 2025, then combine it with larger
 zero-shot Qwen3.5 models as teachers, fusion members, and listwise rerankers, and map what each stage costs.
